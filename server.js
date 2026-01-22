@@ -24,7 +24,32 @@ app.get("/", (req, res) => {
 });
 
 app.get("/thoughts", (req, res) => {
-  res.json(thoughtsData);
+  const { minHearts, search, limit, sort } = req.query;
+  let filteredThoughts = thoughtsData;
+
+  if (minHearts) {
+    filteredThoughts = filteredThoughts.filter(
+      (thought) => thought.hearts >= Number(minHearts),
+    );
+  }
+
+  if (search) {
+    filteredThoughts = filteredThoughts.filter((thought) =>
+      thought.message.toLowerCase().includes(search.toLowerCase()),
+    );
+  }
+
+  if (sort === "createdAt") {
+    filteredThoughts.sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+    );
+  }
+
+  if (limit) {
+    filteredThoughts = filteredThoughts.slice(0, Number(limit));
+  }
+
+  res.json(filteredThoughts);
 });
 
 app.get("/thoughts/:id", (req, res) => {
