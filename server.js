@@ -2,10 +2,12 @@ import cors from "cors";
 import express from "express";
 import mongoose from "mongoose";
 import "dotenv/config";
+console.log("RESET_DB:", process.env.RESET_DB);
 import listEndpoints from "express-list-endpoints";
 import thoughtsData from "./data.json" with { type: "json" };
 
-const mongoUrl = process.env.MONGODB_URI;
+const mongoUrl = process.env.MONGO_URL;
+if (!mongoUrl) throw new Error("MONGO_URL is missing");
 mongoose.connect(mongoUrl);
 
 // Defines the port the app will run on. Defaults to 8080, but can be overridden
@@ -20,7 +22,43 @@ app.use(cors());
 app.use(express.json());
 
 // Mongoose schema
+const thoughtsSchema = new mongoose.Schema({
+  message: {
+    type: String,
+    required: [true, "Message is required"],
+    trim: true,
+    minLength: [5, "Message must be at least 5 characters"],
+    maxLength: [140, "Message cannot be longer than 140 characters"],
+  },
+  hearts: {
+    type: Number,
+    default: 0,
+    min: [0, "Hearts cannot be negative"],
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
 
+const Thought = mongoose.model("Thought", thoughtsSchema);
+
+if (process.env.RESET_DB === "true") {
+  const seedDatabase = async () => {
+    await Thought.deleteMany();
+
+    thoughtsData.forEach((thought) => {
+      new Thought({
+        message: thought.message,
+        hearts: thought.hearts,
+        createdAt: thought.createdAt,
+      }).save();
+    });
+  };
+
+  console.log("seeding database");
+  seedDatabase();
+}
 // === ROUTES ===
 
 // Root endpoint: returns API documentation
