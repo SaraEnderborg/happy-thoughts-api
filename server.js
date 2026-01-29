@@ -1,7 +1,12 @@
 import cors from "cors";
 import express from "express";
+import mongoose from "mongoose";
+import "dotenv/config";
 import listEndpoints from "express-list-endpoints";
 import thoughtsData from "./data.json" with { type: "json" };
+
+const mongoUrl = process.env.MONGODB_URI;
+mongoose.connect(mongoUrl);
 
 // Defines the port the app will run on. Defaults to 8080, but can be overridden
 // when starting the server. Example command to overwrite PORT env variable value:
@@ -10,8 +15,11 @@ import thoughtsData from "./data.json" with { type: "json" };
 const port = process.env.PORT || 8080;
 const app = express();
 
+//middlewares to enable cors and json body parsing
 app.use(cors());
 app.use(express.json());
+
+// Mongoose schema
 
 // === ROUTES ===
 
