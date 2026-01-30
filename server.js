@@ -2,7 +2,6 @@ import cors from "cors";
 import express from "express";
 import mongoose from "mongoose";
 import "dotenv/config";
-console.log("RESET_DB:", process.env.RESET_DB);
 import listEndpoints from "express-list-endpoints";
 import thoughtsData from "./data.json" with { type: "json" };
 
@@ -27,8 +26,8 @@ const thoughtsSchema = new mongoose.Schema({
     type: String,
     required: [true, "Message is required"],
     trim: true,
-    minLength: [5, "Message must be at least 5 characters"],
-    maxLength: [140, "Message cannot be longer than 140 characters"],
+    minlength: [5, "Message must be at least 5 characters"],
+    maxlength: [140, "Message cannot be longer than 140 characters"],
   },
   hearts: {
     type: Number,
@@ -80,57 +79,110 @@ app.get("/", (req, res) => {
 // - sort: if set to "createdAt", sorts by newest first
 // - limit: limits the number of results returned
 
-app.get("/thoughts", (req, res) => {
+app.get("/thoughts", async (req, res) => {
   const { minHearts, search, limit, sort } = req.query;
 
-  // start with all thoughts then apply filters
-  let filteredThoughts = thoughtsData;
+  const query = {};
 
-  // Filter by minimum hearts
   if (minHearts) {
-    filteredThoughts = filteredThoughts.filter(
-      (thought) => thought.hearts >= Number(minHearts),
-    );
+    query.hearts = { $gte: Number(minHearts) }; //$gte-greater than or equal to
   }
-
-  // Filter by search text ( case-insensitive)
   if (search) {
-    filteredThoughts = filteredThoughts.filter((thought) =>
-      thought.message.toLowerCase().includes(search.toLowerCase()),
-    );
+    query.message = { $regex: search, $options: "i" }; //i for case-insensitive, regex=regular expression) for pattern matching, options for additional settings
   }
 
-  // Sort by createdAt (ex. newest first)
-  if (sort === "createdAt") {
-    filteredThoughts.sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-    );
-  }
+  const sortOptions = sort === "createdAt" ? { createdAt: -1 } : {};
 
-  // Limit the number of results
-  if (limit) {
-    filteredThoughts = filteredThoughts.slice(0, Number(limit));
-  }
+  try {
+    let thoughtsQuery = Thought.find(query).sort(sortOptions);
 
-  res.json(filteredThoughts);
+    if (limit) {
+      thoughtsQuery = thoughtsQuery.limit(Number(limit));
+    }
+
+    const thoughts = await thoughtsQuery;
+
+    if (thoughts.length === 0) {
+      return res.status(404).json({
+        success: false,
+        response: [],
+        message: "No thoughts found matching the criteria",
+      });
+    }
+    return res.status(200).json({
+      success: true,
+      response: thoughts,
+      message: "Thoughts retrieved successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      response: [],
+      message: "An error occurred while retrieving thoughts",
+    });
+  }
 });
 
 // Get a single thought by id
-app.get("/thoughts/:id", (req, res) => {
+app.get("/thoughts/:id", async (req, res) => {
   const { id } = req.params;
 
-  // Find thought with matching id
-  const thought = thoughtsData.find((thought) => thought._id === id);
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        response: null,
+        message: "Invalid ID format",
+      });
+    }
 
-  // If not found, return 404 error
-  if (!thought) {
-    return res
-      .status(404)
-      .json({ error: `thought with id ${id} does not exist` });
+    const thought = await Thought.findById(id);
+
+    if (!thought) {
+      return res.status(404).json({
+        success: false,
+        response: null,
+        message: "Thought not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      response: thought,
+      message: "Thought retrieved successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      response: null,
+      message: "An error occurred while retrieving the thought",
+    });
   }
+});
 
-  // Return the found thought
-  res.json(thought);
+app.post("/thoughts", async (req, res) => {
+  const body = req.body;
+
+  try {
+    const newThought = new Thought({
+      message: body.message,
+      hearts: body.hearts,
+    });
+
+    const createdThought = await newThought.save();
+
+    return res.status(201).json({
+      success: true,
+      response: createdThought,
+      message: "Thought created successfully",
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      response: null,
+      message: error.message,
+    });
+  }
 });
 
 // Start the server and listen on the specified port
