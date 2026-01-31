@@ -185,6 +185,83 @@ app.post("/thoughts", async (req, res) => {
   }
 });
 
+app.delete("/thoughts/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        response: null,
+        message: "Invalid ID format",
+      });
+    }
+
+    const deletedThought = await Thought.findByIdAndDelete(id);
+
+    if (!deletedThought) {
+      return res.status(404).json({
+        success: false,
+        response: null,
+        message: "Thought not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      response: deletedThought,
+      message: "Thought deleted successfully",
+    });
+  } catch (error) {
+    console.log("Delete error:", error);
+    return res.status(500).json({
+      success: false,
+      response: null,
+      message: "Failed to delete thought",
+    });
+  }
+});
+
+app.patch("/thoughts/:id/like", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        response: null,
+        message: "Invalid ID format",
+      });
+    }
+
+    const updatedThought = await Thought.findByIdAndUpdate(
+      id,
+      { $inc: { hearts: 1 } }, // $inc is a MongoDB operator, increments the hearts field by 1 and saves the updated value in the database
+      { new: true, runValidators: true },
+    );
+
+    if (!updatedThought) {
+      return res.status(404).json({
+        success: false,
+        response: null,
+        message: "Thought not found",
+      });
+    }
+    return res.status(200).json({
+      success: true,
+      response: updatedThought,
+      message: "Thought liked successfully",
+    });
+  } catch (error) {
+    console.log("LIKE error:", error);
+    return res.status(500).json({
+      success: false,
+      response: null,
+      message: "An error occurred while liking the thought",
+    });
+  }
+});
+
 // Start the server and listen on the specified port
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
