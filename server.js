@@ -222,6 +222,55 @@ app.delete("/thoughts/:id", async (req, res) => {
   }
 });
 
+app.patch("/thoughts/:id", async (req, res) => {
+  const { id } = req.params;
+  const { message } = req.body;
+
+  if (!message) {
+    return res.status(400).json({
+      success: false,
+      response: null,
+      message: "Message is required for update",
+    });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({
+      success: false,
+      response: null,
+      message: "Invalid ID format",
+    });
+  }
+
+  try {
+    const updatedThought = await Thought.findByIdAndUpdate(
+      id,
+      { message },
+      { new: true, runValidators: true },
+    );
+
+    if (!updatedThought) {
+      return res.status(404).json({
+        success: false,
+        response: null,
+        message: "Thought not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      response: updatedThought,
+      message: "Thought updated successfully",
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      response: null,
+      message: error.message,
+    });
+  }
+});
+
 app.patch("/thoughts/:id/like", async (req, res) => {
   const { id } = req.params;
 
