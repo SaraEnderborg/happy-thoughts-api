@@ -1,13 +1,21 @@
-import cors from "cors";
-import express from "express";
-import mongoose from "mongoose";
 import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import mongoose from "mongoose";
+import bcrypt from "bcrypt";
+import crypto from "crypto";
 import listEndpoints from "express-list-endpoints";
 import thoughtsData from "./data.json" with { type: "json" };
 
-const mongoUrl = process.env.MONGO_URL;
-if (!mongoUrl) throw new Error("MONGO_URL is missing");
-mongoose.connect(mongoUrl);
+const mongoUrl = process.env.MONGO_URL || "mongodb://localhost/auth";
+
+try {
+  await mongoose.connect(mongoUrl);
+  console.log("Connected to MongoDB");
+} catch (error) {
+  console.error("MongoDB connection error:", error);
+  process.exit(1);
+}
 
 // Defines the port the app will run on. Defaults to 8080, but can be overridden
 // when starting the server. Example command to overwrite PORT env variable value:
@@ -19,8 +27,61 @@ const app = express();
 //middlewares to enable cors and json body parsing
 app.use(cors());
 app.use(express.json());
+app.use(cors());
+app.use(express.json());
 
-// Mongoose schema
+// Mongoose schema and model for User
+const userSchema = new mongoose.Schema(
+  {
+    username: {
+      type: String,
+      unique: true,
+      required: [true, "Username is required"],
+      trim: true,
+    },
+    email: {
+      type: String,
+      unique: true,
+      trim: true,
+      lowercase: true,
+      required: true,
+    },
+    password: { type: String, required: true, minlength: 8 },
+    accessToken: {
+      type: String,
+      default: () => crypto.randomBytes(128).toString("hex"),
+    },
+  },
+  { timestamps: true },
+);
+
+const User = mongoose.model("User", userSchema);
+
+const authenticateUser = async (req, res, next) => {
+  const authHeader = req.header("Authorization") || "";
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : authHeader;
+
+  if (!token) {
+    return res
+      .status(401)
+      .json({ success: false, message: "Authorization token missing" });
+  }
+
+  const user = await User.findOne({ accessToken: token });
+
+  if (!user) {
+    return res
+      .status(401)
+      .json({ success: false, message: "Invalid authorization token" });
+  }
+
+  req.user = user;
+  next();
+};
+
+// Mongoose schema and model for Thought
 const thoughtsSchema = new mongoose.Schema({
   message: {
     type: String,
@@ -69,6 +130,18 @@ app.get("/", (req, res) => {
   res.json({
     message: "Welcome to my Happy Thoughts API.",
     endpoints: endpoints,
+  });
+});
+
+app.get("/secrets", authenticateUser, (req, res) => {
+  res.json({
+    success: true,
+    secret: "this is a secret message",
+    user: {
+      id: req.user._id,
+      username: req.user.username,
+      email: req.user.email,
+    },
   });
 });
 
@@ -160,7 +233,68 @@ app.get("/thoughts/:id", async (req, res) => {
   }
 });
 
-app.post("/thoughts", async (req, res) => {
+app.post("/users", async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+
+    if (!username || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Username, email, and password are required",
+      });
+    }
+
+    const salt = bcrypt.genSaltSync();
+    const user = new User({
+      username,
+      email,
+      password: bcrypt.hashSync(password, salt),
+    });
+
+    await user.save();
+
+    res.status(201).json({
+      success: true,
+      message: "User created successfully",
+      userId: user._id,
+      accessToken: user.accessToken,
+    });
+  } catch (error) {
+    // Duplicate key error from MongoDB (unique constraints)
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Username or email already exists",
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: "An error occurred while creating the user",
+    });
+  }
+});
+// TODO: fixa bugg med login/ secrets accesstoken
+app.post("/sessions", async (req, res) => {
+  const { username, password, email } = req.body;
+
+  const user = await User.findOne({ email: (email || "").toLowerCase() });
+
+  if (user && bcrypt.compareSync(password, user.password)) {
+    res.status(200).json({
+      success: true,
+      message: "Login successful",
+      userId: user._id,
+      accessToken: user.accessToken,
+    });
+  } else {
+    res.status(401).json({
+      success: false,
+      message: "Invalid credentials",
+    });
+  }
+});
+
+app.post("/thoughts", authenticateUser, async (req, res) => {
   const body = req.body;
 
   try {
