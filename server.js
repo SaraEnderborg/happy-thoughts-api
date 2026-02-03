@@ -9,7 +9,7 @@ import thoughtRoutes from "./routes/thoughtRoutes.js";
 import listEndpoints from "express-list-endpoints";
 import thoughtsData from "./data.json" with { type: "json" };
 
-const mongoUrl = process.env.MONGO_URL || "mongodb://localhost/happy-thoughts";
+const mongoUrl = process.env.MONGO_URL;
 
 try {
   await mongoose.connect(mongoUrl);

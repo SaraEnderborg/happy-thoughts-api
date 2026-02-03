@@ -91,7 +91,7 @@ router.post("/", authenticateUser, async (req, res) => {
   const body = req.body;
 
   try {
-    const newThought = new Thought({
+    const newThought = new Thoughts({
       message: body.message,
       hearts: body.hearts,
     });
