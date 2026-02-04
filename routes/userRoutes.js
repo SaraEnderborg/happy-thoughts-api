@@ -15,6 +15,15 @@ router.post("/user-signup", async (req, res) => {
       });
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "invalid email format",
+      });
+    }
+
     const existingUser = await User.findOne({ email: email.toLowerCase() });
 
     if (existingUser) {

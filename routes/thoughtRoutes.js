@@ -112,7 +112,7 @@ router.post("/", authenticateUser, async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authenticateUser, async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -140,8 +140,7 @@ router.delete("/:id", async (req, res) => {
       message: "Thought deleted successfully",
     });
   } catch (error) {
-    console.log("Delete error:", error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       response: null,
       message: "Failed to delete thought",
@@ -149,7 +148,7 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-router.patch("/:id", async (req, res) => {
+router.patch("/:id", authenticateUser, async (req, res) => {
   const { id } = req.params;
   const { message } = req.body;
 
