@@ -1,4 +1,4 @@
-import express, { response } from "express";
+import express from "express";
 import bcrypt from "bcrypt";
 import { User } from "../models/User.js";
 
@@ -38,6 +38,7 @@ router.post("/user-signup", async (req, res) => {
       success: true,
       message: "User created successfully",
       response: {
+        username: user.username,
         email: user.email,
         userId: user._id,
         accessToken: user.accessToken,
@@ -63,6 +64,7 @@ router.post("/user-login", async (req, res) => {
         success: true,
         message: "Login successful",
         response: {
+          username: user.username,
           email: user.email,
           userId: user._id,
           accessToken: user.accessToken,

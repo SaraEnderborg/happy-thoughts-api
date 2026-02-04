@@ -2,12 +2,9 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
-
 import userRoutes from "./routes/userRoutes.js";
 import thoughtRoutes from "./routes/thoughtRoutes.js";
-
 import listEndpoints from "express-list-endpoints";
-import thoughtsData from "./data.json" with { type: "json" };
 
 const mongoUrl = process.env.MONGO_URL;
 
@@ -30,11 +27,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  const endpoints = listEndpoints(app);
+app.get("/", (_req, res) => {
   res.json({
     message: "Welcome to my Happy Thoughts API.",
-    endpoints: endpoints,
+    endpoints,
   });
 });
 
